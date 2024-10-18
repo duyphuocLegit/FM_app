@@ -2,14 +2,20 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import mysql.connector
 from config import DB_CONFIG
+from gui.add_transaction import AddTransactionWindow
 
 class ViewTransactionsWindow:
-    def __init__(self, parent, refresh_charts_callback):
+    def __init__(self, parent, refresh_callback):
         self.parent = parent
-        self.refresh_charts_callback = refresh_charts_callback
+        self.refresh_callback = refresh_callback
 
         # Set the style
         style = ttk.Style()
+        style.theme_use('clam')  # You can use 'clam', 'alt', 'default', or 'classic'
+        style.configure('TFrame', background='#f0f0f0')
+        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 12, 'bold'))
+        style.configure('TLabel', background='#f0f0f0', font=('Arial', 12))
+        style.configure('TEntry', font=('Arial', 12))
         style.configure('Treeview', font=('Arial', 12), rowheight=25)
         style.configure('Treeview.Heading', font=('Arial', 12, 'bold'))
 
@@ -79,21 +85,24 @@ class ViewTransactionsWindow:
         amount_entry.insert(0, values[1])
 
         tk.Label(edit_window, text="Type").grid(row=2, column=0, padx=10, pady=5)
-        type_entry = tk.Entry(edit_window)
-        type_entry.grid(row=2, column=1, padx=10, pady=5)
-        type_entry.insert(0, values[2])
+        type_var = tk.StringVar(edit_window)
+        type_var.set(values[2])
+        type_option = ttk.OptionMenu(edit_window, type_var, values[2], "income", "expense", command=lambda _: AddTransactionWindow.update_category_options(type_var, category_var, category_option))
+        type_option.grid(row=2, column=1, padx=10, pady=5)
 
         tk.Label(edit_window, text="Category").grid(row=3, column=0, padx=10, pady=5)
-        category_entry = tk.Entry(edit_window)
-        category_entry.grid(row=3, column=1, padx=10, pady=5)
-        category_entry.insert(0, values[3])
+        category_var = tk.StringVar(edit_window)
+        category_option = ttk.OptionMenu(edit_window, category_var, values[3])
+        category_option.grid(row=3, column=1, padx=10, pady=5)
+
+        AddTransactionWindow.update_category_options(type_var, category_var, category_option, initial_category=values[3])
 
         tk.Label(edit_window, text="Date").grid(row=4, column=0, padx=10, pady=5)
         date_entry = tk.Entry(edit_window)
         date_entry.grid(row=4, column=1, padx=10, pady=5)
         date_entry.insert(0, values[4])
 
-        save_button = tk.Button(edit_window, text="Save", command=lambda: self.save_transaction(item_id, title_entry.get(), amount_entry.get(), type_entry.get(), category_entry.get(), date_entry.get(), edit_window))
+        save_button = tk.Button(edit_window, text="Save", command=lambda: self.save_transaction(item_id, title_entry.get(), amount_entry.get(), type_var.get(), category_var.get(), date_entry.get(), edit_window))
         save_button.grid(row=5, column=0, columnspan=2, pady=10)
 
     def save_transaction(self, item_id, title, amount, type, category, date, edit_window):
@@ -107,7 +116,7 @@ class ViewTransactionsWindow:
         self.transactions_tree.item(item_id, values=(title, amount, type, category, date))
         edit_window.destroy()
         messagebox.showinfo("Updated", "Transaction updated successfully.")
-        self.refresh_charts_callback()
+        self.refresh_callback()
 
     def delete_transaction(self):
         selected_item = self.transactions_tree.selection()
@@ -130,4 +139,4 @@ class ViewTransactionsWindow:
             conn.close()
             self.transactions_tree.delete(selected_item)
             messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
-            self.refresh_charts_callback()
+            self.refresh_callback()

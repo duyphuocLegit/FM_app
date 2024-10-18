@@ -26,15 +26,17 @@ class AddTransactionWindow:
         self.type_label.grid(row=2, column=0, sticky=tk.W, pady=5)
         self.type_var = tk.StringVar(self.parent)
         self.type_var.set("income")  # default value
-        self.type_option = ttk.OptionMenu(self.parent, self.type_var, "income", "income", "expense", command=self.update_category_options)
+        self.type_option = ttk.OptionMenu(self.parent, self.type_var, "income", "income", "expense", command=lambda _: AddTransactionWindow.update_category_options(self.type_var, self.category_var, self.category_option))
         self.type_option.grid(row=2, column=1, pady=5)
 
         # Category
         self.category_label = ttk.Label(self.parent, text="Category")
         self.category_label.grid(row=3, column=0, sticky=tk.W, pady=5)
         self.category_var = tk.StringVar(self.parent)
-        self.category_option = ttk.OptionMenu(self.parent, self.category_var, "salary", "salary", "investment", "etc")
+        self.category_option = ttk.OptionMenu(self.parent, self.category_var, "salary")
         self.category_option.grid(row=3, column=1, pady=5)
+
+        AddTransactionWindow.update_category_options(self.type_var, self.category_var, self.category_option)
 
         # Date
         self.date_label = ttk.Label(self.parent, text="Date")
@@ -46,21 +48,23 @@ class AddTransactionWindow:
         self.save_button = ttk.Button(self.parent, text="Save", command=self.save_transaction)
         self.save_button.grid(row=5, columnspan=2, pady=10)
 
-    def update_category_options(self, selected_type):
-        menu = self.category_option["menu"]
+    @staticmethod
+    def update_category_options(type_var, category_var, category_option, initial_category=None):
+        menu = category_option["menu"]
         menu.delete(0, "end")
 
-        if selected_type == "income":
+        if type_var.get() == "income":
             categories = ["salary", "investment", "etc"]
         else:
             categories = ["food", "study", "work", "exercise", "leisure", "etc"]
 
         for category in categories:
-            menu.add_command(label=category, command=lambda value=category: self.category_var.set(value))
+            menu.add_command(label=category, command=lambda value=category: category_var.set(value))
 
-        # Set the default category
-        if categories:
-            self.category_var.set(categories[0])
+        if initial_category:
+            category_var.set(initial_category)
+        else:
+            category_var.set(categories[0])
 
     def save_transaction(self):
         title = self.title_entry.get()
