@@ -76,5 +76,4 @@ class RegisterWindow:
         conn.close()
 
     def on_closing(self):
-        self.master.quit()
         self.master.destroy()

@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from tkcalendar import DateEntry
 import mysql.connector
 from config import DB_CONFIG
 from gui.add_transaction import AddTransactionWindow
@@ -19,17 +20,54 @@ class ViewTransactionsWindow:
         style.configure('Treeview', font=('Arial', 12), rowheight=25)
         style.configure('Treeview.Heading', font=('Arial', 12, 'bold'))
 
+        # Create a frame for the filter options
+        filter_frame = ttk.LabelFrame(self.parent, text="Filter Options", padding="10 10 10 10")
+        filter_frame.pack(fill=tk.X, expand=True)
+
+        # Type Filter
+        self.type_label = ttk.Label(filter_frame, text="Type:")
+        self.type_label.grid(row=0, column=0, sticky=tk.W, pady=5)
+        self.type_var = tk.StringVar(filter_frame)
+        self.type_var.set("all")  # default value
+        self.type_option = ttk.OptionMenu(filter_frame, self.type_var, "all", "all", "income", "expense", command=self.update_category_options)
+        self.type_option.grid(row=0, column=1, pady=5)
+
+        # Category Filter
+        self.category_label = ttk.Label(filter_frame, text="Category:")
+        self.category_label.grid(row=0, column=2, sticky=tk.W, pady=5)
+        self.category_var = tk.StringVar(filter_frame)
+        self.category_option = ttk.OptionMenu(filter_frame, self.category_var, "all")
+        self.category_option.grid(row=0, column=3, pady=5)
+
+        self.update_category_options()
+
+        # Start Date Filter
+        self.start_date_label = ttk.Label(filter_frame, text="Start Date:")
+        self.start_date_label.grid(row=1, column=0, sticky=tk.W, pady=5)
+        self.start_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=27)
+        self.start_date_entry.grid(row=1, column=1, pady=5)
+
+        # End Date Filter
+        self.end_date_label = ttk.Label(filter_frame, text="End Date:")
+        self.end_date_label.grid(row=1, column=2, sticky=tk.W, pady=5)
+        self.end_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=27)
+        self.end_date_entry.grid(row=1, column=3, pady=5)
+
+        # Filter Button
+        self.filter_button = ttk.Button(filter_frame, text="Filter", command=self.apply_filter)
+        self.filter_button.grid(row=2, columnspan=4, pady=10)
+
         # Create a frame for the transactions list
         transactions_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         transactions_frame.pack(fill=tk.BOTH, expand=True)
 
         # Create a Treeview widget for displaying transactions
         self.transactions_tree = ttk.Treeview(transactions_frame, columns=("Title", "Amount", "Type", "Category", "Date"), show='headings')
-        self.transactions_tree.heading("Title", text="Title")
-        self.transactions_tree.heading("Amount", text="Amount")
-        self.transactions_tree.heading("Type", text="Type")
-        self.transactions_tree.heading("Category", text="Category")
-        self.transactions_tree.heading("Date", text="Date")
+        self.transactions_tree.heading("Title", text="Title", command=lambda: self.sort_data("Title"))
+        self.transactions_tree.heading("Amount", text="Amount", command=lambda: self.sort_data("Amount"))
+        self.transactions_tree.heading("Type", text="Type", command=lambda: self.sort_data("Type"))
+        self.transactions_tree.heading("Category", text="Category", command=lambda: self.sort_data("Category"))
+        self.transactions_tree.heading("Date", text="Date", command=lambda: self.sort_data("Date"))
         self.transactions_tree.pack(fill=tk.BOTH, expand=True)
 
         # Add a scrollbar
@@ -59,6 +97,70 @@ class ViewTransactionsWindow:
             self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
         cursor.close()
         conn.close()
+
+    def update_category_options(self, *args):
+        menu = self.category_option["menu"]
+        menu.delete(0, "end")
+
+        if self.type_var.get() == "income":
+            categories = ["all", "salary", "investment", "etc"]
+        elif self.type_var.get() == "expense":
+            categories = ["all", "food", "study", "work", "exercise", "leisure", "etc"]
+        else:
+            categories = ["all"]
+
+        for category in categories:
+            menu.add_command(label=category, command=lambda value=category: self.category_var.set(value))
+
+        self.category_var.set(categories[0])
+
+    def apply_filter(self):
+        type_filter = self.type_var.get()
+        category_filter = self.category_var.get()
+        start_date = self.start_date_entry.get_date().strftime("%Y-%m-%d")
+        end_date = self.end_date_entry.get_date().strftime("%Y-%m-%d")
+
+        query = "SELECT title, amount, type, category, date FROM transactions WHERE date BETWEEN %s AND %s"
+        params = [start_date, end_date]
+
+        if type_filter != "all":
+            query += " AND type = %s"
+            params.append(type_filter)
+
+        if category_filter != "all":
+            query += " AND category = %s"
+            params.append(category_filter)
+
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor()
+        cursor.execute(query, params)
+        transactions = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        for item in self.transactions_tree.get_children():
+            self.transactions_tree.delete(item)
+
+        for (title, amount, type, category, date) in transactions:
+            self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
+
+    def sort_data(self, column):
+        data = [(self.transactions_tree.set(child, column), child) for child in self.transactions_tree.get_children('')]
+        data.sort(reverse=False)
+
+        for index, (val, child) in enumerate(data):
+            self.transactions_tree.move(child, '', index)
+
+        self.transactions_tree.heading(column, command=lambda: self.sort_data_reverse(column))
+
+    def sort_data_reverse(self, column):
+        data = [(self.transactions_tree.set(child, column), child) for child in self.transactions_tree.get_children('')]
+        data.sort(reverse=True)
+
+        for index, (val, child) in enumerate(data):
+            self.transactions_tree.move(child, '', index)
+
+        self.transactions_tree.heading(column, command=lambda: self.sort_data(column))
 
     def edit_transaction(self):
         selected_item = self.transactions_tree.selection()
@@ -140,3 +242,6 @@ class ViewTransactionsWindow:
             self.transactions_tree.delete(selected_item)
             messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
             self.refresh_callback()
+    def on_closing(self):
+        self.parent.quit()
+        self.parent.destroy()

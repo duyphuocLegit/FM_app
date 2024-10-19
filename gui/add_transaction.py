@@ -101,3 +101,6 @@ class AddTransactionWindow:
         self.type_var.set("income")
         self.category_var.set("salary")
         self.date_entry.set_date(None)
+    def on_closing(self):
+        self.parent.quit()
+        self.parent.destroy()
