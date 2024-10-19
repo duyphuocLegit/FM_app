@@ -12,6 +12,7 @@ def main():
 def open_main_window(root, user_id):
     root.destroy()
     main_root = tk.Tk()
+    main_root.state('zoomed')  # Maximize the window
     MainWindow(main_root, user_id)
     main_root.mainloop()
 

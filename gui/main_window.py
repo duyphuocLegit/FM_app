@@ -18,11 +18,11 @@ class MainWindow:
         self.master = master
         self.user_id = user_id
         master.title("Financial Management App")
-        master.geometry("1600x900")  # Set fixed window size
+        master.geometry("1900x1000")  # Set fixed window size
 
         # Set the style
         style = ttk.Style()
-        style.theme_use('alt')  # You can use 'clam', 'alt', 'default', or 'classic'
+        style.theme_use('clam')  # You can use 'clam', 'alt', 'default', or 'classic'
         style.configure('TFrame', background='#f0f0f0')
         style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 14, 'bold'))
         style.configure('TLabel', background='#f0f0f0', font=('Arial', 14))
@@ -96,6 +96,7 @@ class MainWindow:
         self.canvas_frame = ttk.LabelFrame(self.overview_frame, text="Charts", padding="10 10 10 10")
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        
         # Show Charts on startup
         self.show_charts()
 
@@ -122,19 +123,19 @@ class MainWindow:
         income_monthly_data = df[df['type'] == 'income']
         expense_monthly_data = df[df['type'] == 'expense']
 
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6))
-        fig.suptitle('Financial Overview', fontsize=16)
+        fig_income, ax_income = plt.subplots(figsize=(6, 4))
+        fig_expense, ax_expense = plt.subplots(figsize=(6, 4))
+        fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
 
         # Pie Chart for Income
-        ax1.pie(income_sizes, labels=income_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
-        ax1.set_title('Income by Category')
+        ax_income.pie(income_sizes, labels=income_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
+        ax_income.set_title('Income by Category')
 
         # Pie Chart for Expense
-        ax2.pie(expense_sizes, labels=expense_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
-        ax2.set_title('Expense by Category')
+        ax_expense.pie(expense_sizes, labels=expense_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
+        ax_expense.set_title('Expense by Category')
 
         # Bar Chart for Monthly Income vs Expense
-        ax3.clear()
         months = df['month'].unique()
         bar_width = 0.35
         index = np.arange(len(months))
@@ -142,23 +143,42 @@ class MainWindow:
         income_amounts = income_monthly_data.set_index('month')['amount'].reindex(months, fill_value=0).tolist()
         expense_amounts = expense_monthly_data.set_index('month')['amount'].reindex(months, fill_value=0).tolist()
 
-        ax3.bar(index, income_amounts, bar_width, label='Income', color='green')
-        ax3.bar(index + bar_width, expense_amounts, bar_width, label='Expense', color='red')
+        ax_bar.bar(index, income_amounts, bar_width, label='Income', color='green')
+        ax_bar.bar(index + bar_width, expense_amounts, bar_width, label='Expense', color='red')
 
-        ax3.set_xlabel('Month')
-        ax3.set_ylabel('Amount')
-        ax3.set_title('Monthly Income vs Expense')
-        ax3.set_xticks(index + bar_width / 2)
-        ax3.set_xticklabels(months)
-        ax3.legend()
-        ax3.grid(True)
+        ax_bar.set_xlabel('Month')
+        ax_bar.set_ylabel('Amount')
+        ax_bar.set_title('Monthly Income vs Expense')
+        ax_bar.set_xticks(index + bar_width / 2)
+        ax_bar.set_xticklabels(months)
+        ax_bar.legend()
+        ax_bar.grid(True)
+
+        fig_income.tight_layout()
+        fig_expense.tight_layout()
+        fig_bar.tight_layout()
 
         for widget in self.canvas_frame.winfo_children():
             widget.destroy()
 
-        canvas = FigureCanvasTkAgg(fig, master=self.canvas_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        # Add Income Pie Chart
+        canvas_income = FigureCanvasTkAgg(fig_income, master=self.canvas_frame)
+        canvas_income.draw()
+        canvas_income.get_tk_widget().grid(row=0, column=0, padx=10, pady=10)
+
+        # Add Expense Pie Chart
+        canvas_expense = FigureCanvasTkAgg(fig_expense, master=self.canvas_frame)
+        canvas_expense.draw()
+        canvas_expense.get_tk_widget().grid(row=1, column=0, padx=10, pady=10)
+
+        # Add Bar Chart
+        canvas_bar = FigureCanvasTkAgg(fig_bar, master=self.canvas_frame)
+        canvas_bar.draw()
+        canvas_bar.get_tk_widget().grid(row=0, column=1, rowspan=2, padx=10, pady=10, sticky='nsew')
+
+        # Configure column weights
+        self.canvas_frame.grid_columnconfigure(0, weight=1)
+        self.canvas_frame.grid_columnconfigure(1, weight=3)
 
         # Update financial information
         self.update_financial_info()
