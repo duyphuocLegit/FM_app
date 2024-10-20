@@ -4,6 +4,7 @@ from tkcalendar import DateEntry
 import mysql.connector
 from config import DB_CONFIG
 from gui.add_transaction import AddTransactionWindow
+from PIL import Image, ImageTk
 
 class ViewTransactionsWindow:
     def __init__(self, parent, refresh_callback):
@@ -14,11 +15,16 @@ class ViewTransactionsWindow:
         style = ttk.Style()
         style.theme_use('clam')  # You can use 'clam', 'alt', 'default', or 'classic'
         style.configure('TFrame', background='#f0f0f0')
-        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 12, 'bold'))
-        style.configure('TLabel', background='#f0f0f0', font=('Arial', 12))
-        style.configure('TEntry', font=('Arial', 12))
-        style.configure('Treeview', font=('Arial', 12), rowheight=25)
-        style.configure('Treeview.Heading', font=('Arial', 12, 'bold'))
+        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 14, 'bold'))
+        style.configure('TLabel', background='#f0f0f0', font=('Arial', 14))
+        style.configure('TEntry', font=('Arial', 14))
+        style.configure('Treeview', font=('Arial', 14), rowheight=25)
+        style.configure('Treeview.Heading', font=('Arial', 14, 'bold'))
+
+        # Load icons
+        self.filter_icon = self.load_icon("icons/filter.png", (20, 20))
+        self.edit_icon = self.load_icon("icons/edit.png", (20, 20))
+        self.delete_icon = self.load_icon("icons/delete.png", (20, 20))
 
         # Create a frame for the filter options
         filter_frame = ttk.LabelFrame(self.parent, text="Filter Options", padding="10 10 10 10")
@@ -44,17 +50,17 @@ class ViewTransactionsWindow:
         # Start Date Filter
         self.start_date_label = ttk.Label(filter_frame, text="Start Date:")
         self.start_date_label.grid(row=1, column=0, sticky=tk.W, pady=5)
-        self.start_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=27)
+        self.start_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=20)
         self.start_date_entry.grid(row=1, column=1, pady=5)
 
         # End Date Filter
         self.end_date_label = ttk.Label(filter_frame, text="End Date:")
         self.end_date_label.grid(row=1, column=2, sticky=tk.W, pady=5)
-        self.end_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=27)
+        self.end_date_entry = DateEntry(filter_frame, date_pattern='dd/mm/yyyy', width=20)
         self.end_date_entry.grid(row=1, column=3, pady=5)
 
         # Filter Button
-        self.filter_button = ttk.Button(filter_frame, text="Filter", command=self.apply_filter)
+        self.filter_button = ttk.Button(filter_frame, text="Filter", image=self.filter_icon, compound=tk.LEFT, command=self.apply_filter)
         self.filter_button.grid(row=2, columnspan=4, pady=10)
 
         # Create a frame for the transactions list
@@ -78,13 +84,18 @@ class ViewTransactionsWindow:
         # Add Edit and Delete buttons
         buttons_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         buttons_frame.pack(fill=tk.X, expand=True)
-        edit_button = ttk.Button(buttons_frame, text="Edit", command=self.edit_transaction)
+        edit_button = ttk.Button(buttons_frame, text="Edit", image=self.edit_icon, compound=tk.LEFT, command=self.edit_transaction)
         edit_button.pack(side=tk.LEFT, padx=5)
-        delete_button = ttk.Button(buttons_frame, text="Delete", command=self.delete_transaction)
+        delete_button = ttk.Button(buttons_frame, text="Delete", image=self.delete_icon, compound=tk.LEFT, command=self.delete_transaction)
         delete_button.pack(side=tk.LEFT, padx=5)
 
         # Load transactions
         self.load_transactions()
+
+    def load_icon(self, path, size):
+        image = Image.open(path)
+        image = image.resize(size, Image.LANCZOS)
+        return ImageTk.PhotoImage(image)
 
     def load_transactions(self):
         for item in self.transactions_tree.get_children():
@@ -92,11 +103,13 @@ class ViewTransactionsWindow:
 
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("SELECT title, amount, type, category, date FROM transactions")
-        for (title, amount, type, category, date) in cursor:
-            self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
+        cursor.execute("SELECT title, amount, type, category, date FROM transactions ORDER BY date DESC")
+        transactions = cursor.fetchall()
         cursor.close()
         conn.close()
+
+        for (title, amount, type, category, date) in transactions:
+            self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
 
     def update_category_options(self, *args):
         menu = self.category_option["menu"]
@@ -117,6 +130,14 @@ class ViewTransactionsWindow:
     def apply_filter(self):
         type_filter = self.type_var.get()
         category_filter = self.category_var.get()
+        start_date = self.start_date_entry.get_date()
+        end_date = self.end_date_entry.get_date()
+
+        # Validate that start date is not greater than end date
+        if start_date > end_date:
+            messagebox.showerror("Error", "Start date cannot be greater than end date.")
+            return
+        
         start_date = self.start_date_entry.get_date().strftime("%Y-%m-%d")
         end_date = self.end_date_entry.get_date().strftime("%Y-%m-%d")
 
@@ -130,6 +151,8 @@ class ViewTransactionsWindow:
         if category_filter != "all":
             query += " AND category = %s"
             params.append(category_filter)
+
+        query += " ORDER BY date DESC"
 
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
@@ -146,7 +169,11 @@ class ViewTransactionsWindow:
 
     def sort_data(self, column):
         data = [(self.transactions_tree.set(child, column), child) for child in self.transactions_tree.get_children('')]
-        data.sort(reverse=False)
+
+        if column == "Amount":
+            data.sort(key=lambda t: float(t[0]), reverse=False)
+        else:
+            data.sort(reverse=False)
 
         for index, (val, child) in enumerate(data):
             self.transactions_tree.move(child, '', index)
@@ -155,7 +182,11 @@ class ViewTransactionsWindow:
 
     def sort_data_reverse(self, column):
         data = [(self.transactions_tree.set(child, column), child) for child in self.transactions_tree.get_children('')]
-        data.sort(reverse=True)
+
+        if column == "Amount":
+            data.sort(key=lambda t: float(t[0]), reverse=True)
+        else:
+            data.sort(reverse=True)
 
         for index, (val, child) in enumerate(data):
             self.transactions_tree.move(child, '', index)
@@ -242,6 +273,3 @@ class ViewTransactionsWindow:
             self.transactions_tree.delete(selected_item)
             messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
             self.refresh_callback()
-    def on_closing(self):
-        self.parent.quit()
-        self.parent.destroy()

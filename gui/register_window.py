@@ -13,9 +13,9 @@ class RegisterWindow:
         style = ttk.Style()
         style.theme_use('clam')
         style.configure('TFrame', background='#f0f0f0')
-        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 12, 'bold'))
-        style.configure('TLabel', background='#f0f0f0', font=('Arial', 12))
-        style.configure('TEntry', font=('Arial', 12))
+        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 14, 'bold'))
+        style.configure('TLabel', background='#f0f0f0', font=('Arial', 14))
+        style.configure('TEntry', font=('Arial', 14))
 
         # Handle window close event
         master.protocol("WM_DELETE_WINDOW", self.on_closing)

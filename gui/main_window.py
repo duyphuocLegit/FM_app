@@ -1,15 +1,12 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from tkcalendar import DateEntry
+from tkinter import ttk
 from gui.add_transaction import AddTransactionWindow
 from gui.view_transactions import ViewTransactionsWindow
-from database.models import Transaction
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import mysql.connector
 from config import DB_CONFIG
 import pandas as pd
-from datetime import datetime
 from PIL import Image, ImageTk
 import numpy as np
 
@@ -23,10 +20,10 @@ class MainWindow:
         # Set the style
         style = ttk.Style()
         style.theme_use('clam')  # You can use 'clam', 'alt', 'default', or 'classic'
-        style.configure('TFrame', background='#f0f0f0')
-        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 14, 'bold'))
-        style.configure('TLabel', background='#f0f0f0', font=('Arial', 14))
-        style.configure('TEntry', font=('Arial', 14))
+        style.configure('TFrame',font=('Arial', 16))
+        style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 16, 'bold'))
+        style.configure('TLabel', font=('Arial', 16))
+        style.configure('TEntry', font=('Arial', 16))
 
         # Handle window close event
         master.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -62,35 +59,33 @@ class MainWindow:
 
     def init_overview_tab(self):
         # Financial Information Frame
-        info_frame = ttk.LabelFrame(self.overview_frame, text="Financial Information")
-        info_frame.pack(fill=tk.X, expand=True)
+        info_frame = ttk.LabelFrame(self.overview_frame, text="Financial Information", padding="10 10 10 10")
+        info_frame.pack(fill=tk.X, expand=True,padx=10, pady=10)
 
-        # First Row
         self.total_income_label = ttk.Label(info_frame, text="Total Income:")
-        self.total_income_label.grid(row=0, column=0, sticky=tk.W, pady=5, padx=5)
-        self.total_income_value = ttk.Label(info_frame, text="", background='#ffffff', font=('Arial', 14, 'bold'))
-        self.total_income_value.grid(row=0, column=1, pady=5)
+        self.total_income_label.grid(row=0, column=0, sticky=tk.W, pady=5,padx=5)
+        self.total_income_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
+        self.total_income_value.grid(row=0, column=1, pady=5,padx=25)
 
         self.total_expenses_label = ttk.Label(info_frame, text="Total Expenses:")
-        self.total_expenses_label.grid(row=0, column=2, sticky=tk.W, pady=5, padx=5)
-        self.total_expenses_value = ttk.Label(info_frame, text="", background='#ffffff', font=('Arial', 14, 'bold'))
-        self.total_expenses_value.grid(row=0, column=3, pady=5)
+        self.total_expenses_label.grid(row=0, column=2, sticky=tk.W, pady=5,padx=5)
+        self.total_expenses_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
+        self.total_expenses_value.grid(row=0, column=3, pady=5,padx=25)
 
         self.balance_label = ttk.Label(info_frame, text="Balance:")
-        self.balance_label.grid(row=0, column=4, sticky=tk.W, pady=5, padx=5)
-        self.balance_value = ttk.Label(info_frame, text="", background='#ffffff', font=('Arial', 14, 'bold'))
-        self.balance_value.grid(row=0, column=5, pady=5)
+        self.balance_label.grid(row=0, column=4, sticky=tk.W, pady=5,padx=5)
+        self.balance_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
+        self.balance_value.grid(row=0, column=5, pady=5,padx=25)
 
-        # Second Row
         self.max_income_label = ttk.Label(info_frame, text="Max Income:")
-        self.max_income_label.grid(row=0, column=6, sticky=tk.W, pady=5, padx=5)
-        self.max_income_value = ttk.Label(info_frame, text="", background='#ffffff', font=('Arial', 14, 'bold'))
-        self.max_income_value.grid(row=0, column=7, pady=5)
+        self.max_income_label.grid(row=0, column=6, sticky=tk.W, pady=5,padx=5)
+        self.max_income_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
+        self.max_income_value.grid(row=0, column=7, pady=5,padx=25)
 
         self.max_expense_label = ttk.Label(info_frame, text="Max Expense:")
-        self.max_expense_label.grid(row=0, column=8, sticky=tk.W, pady=5, padx=5)
-        self.max_expense_value = ttk.Label(info_frame, text="", background='#ffffff', font=('Arial', 14, 'bold'))
-        self.max_expense_value.grid(row=0, column=9, pady=5)
+        self.max_expense_label.grid(row=0, column=8, sticky=tk.W, pady=5,padx=5)
+        self.max_expense_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
+        self.max_expense_value.grid(row=0, column=9, pady=5,padx=25)
 
         # Canvas for Charts
         self.canvas_frame = ttk.LabelFrame(self.overview_frame, text="Charts", padding="10 10 10 10")
@@ -128,15 +123,15 @@ class MainWindow:
         fig_bar, ax_bar = plt.subplots(figsize=(10, 6))
 
         # Pie Chart for Income
-        ax_income.pie(income_sizes, labels=income_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
+        ax_income.pie(income_sizes, labels=income_labels, autopct='%1.1f%%', startangle=160, colors=plt.cm.Paired.colors)
         ax_income.set_title('Income by Category')
 
         # Pie Chart for Expense
-        ax_expense.pie(expense_sizes, labels=expense_labels, autopct='%1.1f%%', startangle=140, colors=plt.cm.Paired.colors)
+        ax_expense.pie(expense_sizes, labels=expense_labels, autopct='%1.1f%%', startangle=160, colors=plt.cm.Paired.colors)
         ax_expense.set_title('Expense by Category')
 
         # Bar Chart for Monthly Income vs Expense
-        months = df['month'].unique()
+        months = sorted(df['month'].unique())
         bar_width = 0.35
         index = np.arange(len(months))
 
