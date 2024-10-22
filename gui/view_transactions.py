@@ -5,6 +5,10 @@ import mysql.connector
 from config import DB_CONFIG
 from gui.add_transaction import AddTransactionWindow
 from PIL import Image, ImageTk
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from datetime import datetime
+import os
 
 class ViewTransactionsWindow:
     def __init__(self, parent, refresh_callback):
@@ -25,6 +29,7 @@ class ViewTransactionsWindow:
         self.filter_icon = self.load_icon("icons/filter.png", (20, 20))
         self.edit_icon = self.load_icon("icons/edit.png", (20, 20))
         self.delete_icon = self.load_icon("icons/delete.png", (20, 20))
+        self.export_icon = self.load_icon("icons/export.png", (20, 20))
 
         # Create a frame for the filter options
         filter_frame = ttk.LabelFrame(self.parent, text="Filter Options", padding="10 10 10 10")
@@ -76,19 +81,20 @@ class ViewTransactionsWindow:
         self.transactions_tree.heading("Date", text="Date", command=lambda: self.sort_data("Date"))
         self.transactions_tree.pack(fill=tk.BOTH, expand=True)
 
-        # Add a scrollbar
+        # scrollbar
         scrollbar = ttk.Scrollbar(transactions_frame, orient=tk.VERTICAL, command=self.transactions_tree.yview)
         self.transactions_tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Add Edit and Delete buttons
+        # Add,Edit,Delete,Export buttons
         buttons_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         buttons_frame.pack(fill=tk.X, expand=True)
         edit_button = ttk.Button(buttons_frame, text="Edit", image=self.edit_icon, compound=tk.LEFT, command=self.edit_transaction)
         edit_button.pack(side=tk.LEFT, padx=5)
         delete_button = ttk.Button(buttons_frame, text="Delete", image=self.delete_icon, compound=tk.LEFT, command=self.delete_transaction)
         delete_button.pack(side=tk.LEFT, padx=5)
-
+        export_button = ttk.Button(buttons_frame, text="Export to PDF", image=self.export_icon, compound=tk.LEFT, command=self.export_to_pdf)
+        export_button.pack(side=tk.LEFT, padx=5)
         # Load transactions
         self.load_transactions()
 
@@ -133,7 +139,7 @@ class ViewTransactionsWindow:
         start_date = self.start_date_entry.get_date()
         end_date = self.end_date_entry.get_date()
 
-        # Validate that start date is not greater than end date
+        # start-date <= end-date validate
         if start_date > end_date:
             messagebox.showerror("Error", "Start date cannot be greater than end date.")
             return
@@ -273,3 +279,43 @@ class ViewTransactionsWindow:
             self.transactions_tree.delete(selected_item)
             messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
             self.refresh_callback()
+
+    def export_to_pdf(self):
+        transactions = [(self.transactions_tree.item(child)["values"]) for child in self.transactions_tree.get_children('')]
+
+        if not transactions:
+            messagebox.showwarning("No data", "No transactions to export.")
+            return
+
+        # Ensure the directory exists
+        directory = "pdf"
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        file_path = os.path.join(directory, "transactions_report.pdf")
+        try:
+            c = canvas.Canvas(file_path, pagesize=letter)
+            width, height = letter
+
+            c.drawString(30, height - 30, "Transactions Report")
+            c.drawString(30, height - 50, "Generated on: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+            table_data = [["Title", "Amount", "Type", "Category", "Date"]]
+            table_data.extend(transactions)
+
+            x_offset = 30
+            y_offset = height - 80
+            row_height = 20
+            col_widths = [100, 100, 100, 100, 100]
+
+            for row in table_data:
+                for col, value in enumerate(row):
+                    c.drawString(x_offset + col * col_widths[col], y_offset, str(value))
+                y_offset -= row_height
+
+            c.save()
+            messagebox.showinfo("Exported", f"Transactions exported to {file_path}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export transactions to PDF: {e}")
+
+  
