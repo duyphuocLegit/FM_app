@@ -3,12 +3,14 @@ from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 from modules.transaction import Transaction, update_category_options
 from datetime import datetime
+import mysql.connector
 
 class AddTransactionWindow:
-    def __init__(self, parent, refresh_callback, user_id):
+    def __init__(self, parent, refresh_callback, user_id, main_window):
         self.parent = parent
         self.refresh_callback = refresh_callback
         self.user_id = user_id
+        self.main_window = main_window  # Store the MainWindow instance
 
         # Title
         self.title_label = ttk.Label(self.parent, text="Title")
@@ -75,12 +77,18 @@ class AddTransactionWindow:
             messagebox.showerror("Error", "Date must be in DD/MM/YYYY format")
             return
 
-        transaction = Transaction(title, amount, type, category, date, self.user_id)
-        transaction.save()
-        messagebox.showinfo("Success", "Transaction saved successfully")
-        self.clear_add_form()
-        self.refresh_callback()
-        self.parent.destroy()
+        try:
+            transaction = Transaction(title, amount, type, category, date, self.user_id)
+            transaction.save()
+            messagebox.showinfo("Success", "Transaction saved successfully")
+            self.clear_add_form()
+            self.refresh_callback()
+            self.main_window.refresh_data()  # Call the refresh_data method to update the charts
+            self.parent.destroy()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Database Error", f"An error occurred while saving the transaction: {err}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
 
     def clear_add_form(self):
         self.title_entry.delete(0, tk.END)

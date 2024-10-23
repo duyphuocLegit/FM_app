@@ -7,7 +7,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from datetime import datetime
 import os
-from modules.transaction import load_transactions, apply_filter, update_category_options, Transaction
+import mysql.connector
+from modules.transaction import *
 
 class ViewTransactionsWindow:
     def __init__(self, parent, refresh_callback, user_id):
@@ -90,7 +91,7 @@ class ViewTransactionsWindow:
         # Add, Edit, Delete, Export buttons
         buttons_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         buttons_frame.pack(fill=tk.X, expand=True)
-        add_button = ttk.Button(buttons_frame, text="Add Transaction", image=self.add_icon, compound=tk.LEFT, command=self.open_add_transaction_window)
+        add_button = ttk.Button(buttons_frame, text="Add", image=self.add_icon, compound=tk.LEFT, command=self.open_add_transaction_window)
         add_button.pack(side=tk.LEFT, padx=5)
         edit_button = ttk.Button(buttons_frame, text="Edit", image=self.edit_icon, compound=tk.LEFT, command=self.edit_transaction)
         edit_button.pack(side=tk.LEFT, padx=5)
@@ -115,13 +116,26 @@ class ViewTransactionsWindow:
         for (title, amount, type, category, date) in transactions:
             self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
 
-    def update_category_options(self):
+    def update_category_options(self, *args):
+        update_category_options(self.type_var, self.category_var, self.category_option)
         if self.type_var.get() == "all":
             self.category_var.set("all")  # Set default category to "all" when type is "all"
         else:
-            update_category_options(self.type_var, self.category_var, self.category_option)
-        
-        
+            # Update category options based on the selected type
+            if self.type_var.get() == "income":
+                categories = ["all", "salary", "investment", "etc"]
+            elif self.type_var.get() == "expense":
+                categories = ["all", "food", "study", "work", "exercise", "leisure", "etc"]
+            else:
+                categories = ["all"]
+
+            menu = self.category_option["menu"]
+            menu.delete(0, "end")
+            for category in categories:
+                menu.add_command(label=category, command=lambda value=category: self.category_var.set(value))
+
+            self.category_var.set("all")
+
     def apply_filter(self):
         type_filter = self.type_var.get()
         category_filter = self.category_var.get()
@@ -219,37 +233,56 @@ class ViewTransactionsWindow:
         save_button.grid(row=5, column=0, columnspan=2, pady=10)
 
     def save_transaction(self, item_id, title, amount, type, category, date, edit_window):
-        transaction = Transaction(title, amount, type, category, date, self.user_id)
-        transaction.update(self.transactions_tree.item(item_id)['values'][0])
-        self.transactions_tree.item(item_id, values=(title, amount, type, category, date))
-        edit_window.destroy()
-        messagebox.showinfo("Updated", "Transaction updated successfully.")
-        self.refresh_callback()
-
-    def delete_transaction(self):
-        selected_item = self.transactions_tree.selection()
-        if not selected_item:
-            messagebox.showwarning("No selection", "Please select a transaction to delete.")
+        try:
+            amount = float(amount)
+        except ValueError:
+            messagebox.showerror("Error", "Amount must be a number")
             return
 
-        item = self.transactions_tree.item(selected_item)
-        values = item['values']
-        title = values[0]
+        try:
+            date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
+        except ValueError:
+            messagebox.showerror("Error", "Date must be in YYYY/MM/DD format")
+            return
 
-        confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the transaction '{title}'?")
-        if confirm:
-            transaction = Transaction(title, None, None, None, None, self.user_id)
-            transaction.delete()
-            self.transactions_tree.delete(selected_item)
-            messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
+        try:
+            transaction = Transaction(title, amount, type, category, date, self.user_id)
+            transaction.update(self.transactions_tree.item(item_id)['values'][0])
+            self.transactions_tree.item(item_id, values=(title, amount, type, category, date))
+            edit_window.destroy()
+            messagebox.showinfo("Updated", "Transaction updated successfully.")
             self.refresh_callback()
+        except mysql.connector.Error as err:
+            messagebox.showerror("Database Error", f"An error occurred while updating the transaction: {err}")
+        except Exception as e:
+            messagebox.showerror("Error", f"An unexpected error occurred: {e}")
+        self.parent.destroy()
+        
+    def delete_transaction(self):
+            selected_item = self.transactions_tree.selection()
+            if not selected_item:
+                messagebox.showwarning("No selection", "Please select a transaction to delete.")
+                return
+
+            item = self.transactions_tree.item(selected_item)
+            values = item['values']
+            title = values[0]
+
+            confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the transaction '{title}'?")
+            if confirm:
+                transaction = Transaction(title, None, None, None, None, self.user_id)
+                transaction.delete()
+                self.transactions_tree.delete(selected_item)
+                messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
+                self.refresh_callback()
 
     def open_add_transaction_window(self):
         add_window = tk.Toplevel(self.parent)
-        AddTransactionWindow(add_window, self.refresh_data, self.user_id)
+        AddTransactionWindow(add_window, self.refresh_data, self.user_id,self)
 
     def refresh_data(self):
         self.load_transactions()
+        self.refresh_callback()
 
     def export_to_pdf(self):
         transactions = [(self.transactions_tree.item(child)["values"]) for child in self.transactions_tree.get_children('')]

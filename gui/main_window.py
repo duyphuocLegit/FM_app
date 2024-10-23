@@ -8,6 +8,7 @@ from config import DB_CONFIG
 import pandas as pd
 from PIL import Image, ImageTk
 import numpy as np
+from modules.transaction import fetch_data, fetch_monthly_data
 
 class MainWindow:
     def __init__(self, master, user_id):
@@ -95,7 +96,7 @@ class MainWindow:
         ViewTransactionsWindow(self.view_frame, self.refresh_data, self.user_id)
 
     def show_charts(self):
-        data = self.fetch_data()
+        data = fetch_data(self.user_id)
         income_data = [item for item in data if item[0] == 'income']
         expense_data = [item for item in data if item[0] == 'expense']
 
@@ -105,7 +106,7 @@ class MainWindow:
         expense_labels = [item[1] for item in expense_data]
         expense_sizes = [item[2] for item in expense_data]
 
-        monthly_data = self.fetch_monthly_data()
+        monthly_data = fetch_monthly_data(self.user_id)
         df = pd.DataFrame(monthly_data, columns=['type', 'month', 'amount'])
 
         income_monthly_data = df[df['type'] == 'income']
@@ -170,34 +171,6 @@ class MainWindow:
 
         # Update financial information
         self.update_financial_info()
-
-    def fetch_data(self):
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("""
-        SELECT type, category, SUM(amount) 
-        FROM transactions 
-        WHERE user_id = %s
-        GROUP BY type, category
-        """, (self.user_id,))
-        data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return data
-
-    def fetch_monthly_data(self):
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("""
-        SELECT type, DATE_FORMAT(date, '%Y-%m') as month, SUM(amount) 
-        FROM transactions 
-        WHERE user_id = %s
-        GROUP BY type, month
-        """, (self.user_id,))
-        data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return data
 
     def update_financial_info(self):
         conn = mysql.connector.connect(**DB_CONFIG)
