@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import mysql.connector
 from config import DB_CONFIG
 from gui.register_window import RegisterWindow
+from gui.main_window import MainWindow
 
 class LoginWindow:
     def __init__(self, master, on_login_success):

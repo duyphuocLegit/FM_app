@@ -20,7 +20,7 @@ class MainWindow:
         # Set the style
         style = ttk.Style()
         style.theme_use('clam')  # You can use 'clam', 'alt', 'default', or 'classic'
-        style.configure('TFrame',font=('Arial', 16))
+        style.configure('TFrame', font=('Arial', 16))
         style.configure('TButton', background='#4CAF50', foreground='white', font=('Arial', 16, 'bold'))
         style.configure('TLabel', font=('Arial', 16))
         style.configure('TEntry', font=('Arial', 16))
@@ -60,46 +60,45 @@ class MainWindow:
     def init_overview_tab(self):
         # Financial Information Frame
         info_frame = ttk.LabelFrame(self.overview_frame, text="Financial Information", padding="10 10 10 10")
-        info_frame.pack(fill=tk.X, expand=True,padx=10, pady=10)
+        info_frame.pack(fill=tk.X, expand=True, padx=10, pady=10)
 
         self.total_income_label = ttk.Label(info_frame, text="Total Income:")
-        self.total_income_label.grid(row=0, column=0, sticky=tk.W, pady=5,padx=5)
-        self.total_income_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
-        self.total_income_value.grid(row=0, column=1, pady=5,padx=25)
+        self.total_income_label.grid(row=0, column=0, sticky=tk.W, pady=5, padx=5)
+        self.total_income_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
+        self.total_income_value.grid(row=0, column=1, pady=5, padx=25)
 
         self.total_expenses_label = ttk.Label(info_frame, text="Total Expenses:")
-        self.total_expenses_label.grid(row=0, column=2, sticky=tk.W, pady=5,padx=5)
-        self.total_expenses_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
-        self.total_expenses_value.grid(row=0, column=3, pady=5,padx=25)
+        self.total_expenses_label.grid(row=0, column=2, sticky=tk.W, pady=5, padx=5)
+        self.total_expenses_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
+        self.total_expenses_value.grid(row=0, column=3, pady=5, padx=25)
 
         self.balance_label = ttk.Label(info_frame, text="Balance:")
-        self.balance_label.grid(row=0, column=4, sticky=tk.W, pady=5,padx=5)
-        self.balance_value = ttk.Label(info_frame, text="",  font=('Arial', 16, 'bold'))
-        self.balance_value.grid(row=0, column=5, pady=5,padx=25)
+        self.balance_label.grid(row=0, column=4, sticky=tk.W, pady=5, padx=5)
+        self.balance_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
+        self.balance_value.grid(row=0, column=5, pady=5, padx=25)
 
         self.max_income_label = ttk.Label(info_frame, text="Max Income:")
-        self.max_income_label.grid(row=0, column=6, sticky=tk.W, pady=5,padx=5)
+        self.max_income_label.grid(row=0, column=6, sticky=tk.W, pady=5, padx=5)
         self.max_income_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
-        self.max_income_value.grid(row=0, column=7, pady=5,padx=25)
+        self.max_income_value.grid(row=0, column=7, pady=5, padx=25)
 
         self.max_expense_label = ttk.Label(info_frame, text="Max Expense:")
-        self.max_expense_label.grid(row=0, column=8, sticky=tk.W, pady=5,padx=5)
+        self.max_expense_label.grid(row=0, column=8, sticky=tk.W, pady=5, padx=5)
         self.max_expense_value = ttk.Label(info_frame, text="", font=('Arial', 16, 'bold'))
-        self.max_expense_value.grid(row=0, column=9, pady=5,padx=25)
+        self.max_expense_value.grid(row=0, column=9, pady=5, padx=25)
 
         # Canvas for Charts
         self.canvas_frame = ttk.LabelFrame(self.overview_frame, text="Charts", padding="10 10 10 10")
         self.canvas_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        
         # Show Charts on startup
         self.show_charts()
 
     def init_view_tab(self):
-        ViewTransactionsWindow(self.view_frame, self.refresh_data)
+        ViewTransactionsWindow(self.view_frame, self.refresh_data, self.user_id)
 
     def init_add_tab(self):
-        AddTransactionWindow(self.add_frame, self.refresh_data)
+        AddTransactionWindow(self.add_frame, self.refresh_data, self.user_id)
 
     def show_charts(self):
         data = self.fetch_data()
@@ -184,8 +183,9 @@ class MainWindow:
         cursor.execute("""
         SELECT type, category, SUM(amount) 
         FROM transactions 
+        WHERE user_id = %s
         GROUP BY type, category
-        """)
+        """, (self.user_id,))
         data = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -197,8 +197,9 @@ class MainWindow:
         cursor.execute("""
         SELECT type, DATE_FORMAT(date, '%Y-%m') as month, SUM(amount) 
         FROM transactions 
+        WHERE user_id = %s
         GROUP BY type, month
-        """)
+        """, (self.user_id,))
         data = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -209,12 +210,12 @@ class MainWindow:
         cursor = conn.cursor()
 
         # Total Income
-        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='income'")
+        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='income' AND user_id = %s", (self.user_id,))
         total_income = cursor.fetchone()[0] or 0
         self.total_income_value.config(text=f"{total_income:.2f}")
 
         # Total Expenses
-        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='expense'")
+        cursor.execute("SELECT SUM(amount) FROM transactions WHERE type='expense' AND user_id = %s", (self.user_id,))
         total_expenses = cursor.fetchone()[0] or 0
         self.total_expenses_value.config(text=f"{total_expenses:.2f}")
 
@@ -223,12 +224,12 @@ class MainWindow:
         self.balance_value.config(text=f"{balance:.2f}")
 
         # Max Income
-        cursor.execute("SELECT MAX(amount) FROM transactions WHERE type='income'")
+        cursor.execute("SELECT MAX(amount) FROM transactions WHERE type='income' AND user_id = %s", (self.user_id,))
         max_income = cursor.fetchone()[0] or 0
         self.max_income_value.config(text=f"{max_income:.2f}")
 
         # Max Expense
-        cursor.execute("SELECT MAX(amount) FROM transactions WHERE type='expense'")
+        cursor.execute("SELECT MAX(amount) FROM transactions WHERE type='expense' AND user_id = %s", (self.user_id,))
         max_expense = cursor.fetchone()[0] or 0
         self.max_expense_value.config(text=f"{max_expense:.2f}")
 

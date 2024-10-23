@@ -5,9 +5,10 @@ from database.models import Transaction
 from datetime import datetime
 
 class AddTransactionWindow:
-    def __init__(self, parent, refresh_charts_callback):
+    def __init__(self, parent, refresh_charts_callback, user_id):
         self.parent = parent
         self.refresh_charts_callback = refresh_charts_callback
+        self.user_id = user_id
 
         # Title
         self.title_label = ttk.Label(self.parent, text="Title")
@@ -89,7 +90,7 @@ class AddTransactionWindow:
             messagebox.showerror("Error", "Date must be in DD/MM/YYYY format")
             return
 
-        transaction = Transaction(title, amount, type, category, date)
+        transaction = Transaction(title, amount, type, category, date, self.user_id)
         transaction.save()
         messagebox.showinfo("Success", "Transaction saved successfully")
         self.clear_add_form()
@@ -101,6 +102,7 @@ class AddTransactionWindow:
         self.type_var.set("income")
         self.category_var.set("salary")
         self.date_entry.set_date(None)
+
     def on_closing(self):
         self.parent.quit()
         self.parent.destroy()

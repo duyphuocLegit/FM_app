@@ -11,9 +11,10 @@ from datetime import datetime
 import os
 
 class ViewTransactionsWindow:
-    def __init__(self, parent, refresh_callback):
+    def __init__(self, parent, refresh_callback, user_id):
         self.parent = parent
         self.refresh_callback = refresh_callback
+        self.user_id = user_id
 
         # Set the style
         style = ttk.Style()
@@ -86,7 +87,7 @@ class ViewTransactionsWindow:
         self.transactions_tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # Add,Edit,Delete,Export buttons
+        # Add, Edit, Delete, Export buttons
         buttons_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         buttons_frame.pack(fill=tk.X, expand=True)
         edit_button = ttk.Button(buttons_frame, text="Edit", image=self.edit_icon, compound=tk.LEFT, command=self.edit_transaction)
@@ -95,6 +96,7 @@ class ViewTransactionsWindow:
         delete_button.pack(side=tk.LEFT, padx=5)
         export_button = ttk.Button(buttons_frame, text="Export to PDF", image=self.export_icon, compound=tk.LEFT, command=self.export_to_pdf)
         export_button.pack(side=tk.LEFT, padx=5)
+
         # Load transactions
         self.load_transactions()
 
@@ -109,7 +111,7 @@ class ViewTransactionsWindow:
 
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("SELECT title, amount, type, category, date FROM transactions ORDER BY date DESC")
+        cursor.execute("SELECT title, amount, type, category, date FROM transactions WHERE user_id = %s ORDER BY date DESC", (self.user_id,))
         transactions = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -139,7 +141,6 @@ class ViewTransactionsWindow:
         start_date = self.start_date_entry.get_date()
         end_date = self.end_date_entry.get_date()
 
-        # start-date <= end-date validate
         if start_date > end_date:
             messagebox.showerror("Error", "Start date cannot be greater than end date.")
             return
@@ -147,8 +148,8 @@ class ViewTransactionsWindow:
         start_date = self.start_date_entry.get_date().strftime("%Y-%m-%d")
         end_date = self.end_date_entry.get_date().strftime("%Y-%m-%d")
 
-        query = "SELECT title, amount, type, category, date FROM transactions WHERE date BETWEEN %s AND %s"
-        params = [start_date, end_date]
+        query = "SELECT title, amount, type, category, date FROM transactions WHERE user_id = %s AND date BETWEEN %s AND %s"
+        params = [self.user_id, start_date, end_date]
 
         if type_filter != "all":
             query += " AND type = %s"
@@ -247,7 +248,8 @@ class ViewTransactionsWindow:
     def save_transaction(self, item_id, title, amount, type, category, date, edit_window):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
-        cursor.execute("UPDATE transactions SET title=%s, amount=%s, type=%s, category=%s, date=%s WHERE title=%s", (title, amount, type, category, date, self.transactions_tree.item(item_id)['values'][0]))
+        cursor.execute("UPDATE transactions SET title=%s, amount=%s, type=%s, category=%s, date=%s WHERE title=%s AND user_id=%s", 
+                       (title, amount, type, category, date, self.transactions_tree.item(item_id)['values'][0], self.user_id))
         conn.commit()
         cursor.close()
         conn.close()
@@ -267,12 +269,11 @@ class ViewTransactionsWindow:
         values = item['values']
         title = values[0]
 
-        # Confirm deletion
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the transaction '{title}'?")
         if confirm:
             conn = mysql.connector.connect(**DB_CONFIG)
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM transactions WHERE title = %s", (title,))
+            cursor.execute("DELETE FROM transactions WHERE title = %s AND user_id = %s", (title, self.user_id))
             conn.commit()
             cursor.close()
             conn.close()
@@ -317,5 +318,3 @@ class ViewTransactionsWindow:
             messagebox.showinfo("Exported", f"Transactions exported to {file_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export transactions to PDF: {e}")
-
-  
