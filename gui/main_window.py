@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-from gui.add_transaction import AddTransactionWindow
 from gui.view_transactions import ViewTransactionsWindow
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -35,7 +34,7 @@ class MainWindow:
         # Load and resize icons
         self.overview_icon = self.load_icon("icons/overview.png", (20, 20))
         self.view_icon = self.load_icon("icons/view.png", (20, 20))
-        self.add_icon = self.load_icon("icons/add.png", (20, 20))
+        
 
         # Create frames for each tab
         self.overview_frame = ttk.Frame(self.notebook, padding="10 10 10 10")
@@ -45,12 +44,10 @@ class MainWindow:
         # Add frames to notebook with icons
         self.notebook.add(self.overview_frame, text="Overview", image=self.overview_icon, compound=tk.LEFT)
         self.notebook.add(self.view_frame, text="View Transactions", image=self.view_icon, compound=tk.LEFT)
-        self.notebook.add(self.add_frame, text="Add Transaction", image=self.add_icon, compound=tk.LEFT)
 
         # Initialize each tab
         self.init_overview_tab()
         self.init_view_tab()
-        self.init_add_tab()
 
     def load_icon(self, path, size):
         image = Image.open(path)
@@ -96,9 +93,6 @@ class MainWindow:
 
     def init_view_tab(self):
         ViewTransactionsWindow(self.view_frame, self.refresh_data, self.user_id)
-
-    def init_add_tab(self):
-        AddTransactionWindow(self.add_frame, self.refresh_data, self.user_id)
 
     def show_charts(self):
         data = self.fetch_data()

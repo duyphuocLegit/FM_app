@@ -1,13 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
-from database.models import Transaction
+from modules.transaction import Transaction, update_category_options
 from datetime import datetime
 
 class AddTransactionWindow:
-    def __init__(self, parent, refresh_charts_callback, user_id):
+    def __init__(self, parent, refresh_callback, user_id):
         self.parent = parent
-        self.refresh_charts_callback = refresh_charts_callback
+        self.refresh_callback = refresh_callback
         self.user_id = user_id
 
         # Title
@@ -49,23 +49,8 @@ class AddTransactionWindow:
         self.save_button = ttk.Button(self.parent, text="Save", command=self.save_transaction)
         self.save_button.grid(row=5, columnspan=2, pady=10)
 
-    @staticmethod
     def update_category_options(type_var, category_var, category_option, initial_category=None):
-        menu = category_option["menu"]
-        menu.delete(0, "end")
-
-        if type_var.get() == "income":
-            categories = ["salary", "investment", "etc"]
-        else:
-            categories = ["food", "study", "work", "exercise", "leisure", "etc"]
-
-        for category in categories:
-            menu.add_command(label=category, command=lambda value=category: category_var.set(value))
-
-        if initial_category:
-            category_var.set(initial_category)
-        else:
-            category_var.set(categories[0])
+        update_category_options(type_var, category_var, category_option, initial_category)
 
     def save_transaction(self):
         title = self.title_entry.get()
@@ -94,7 +79,8 @@ class AddTransactionWindow:
         transaction.save()
         messagebox.showinfo("Success", "Transaction saved successfully")
         self.clear_add_form()
-        self.refresh_charts_callback()
+        self.refresh_callback()
+        self.parent.destroy()
 
     def clear_add_form(self):
         self.title_entry.delete(0, tk.END)

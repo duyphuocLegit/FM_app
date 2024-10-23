@@ -1,14 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
-import mysql.connector
-from config import DB_CONFIG
 from gui.add_transaction import AddTransactionWindow
 from PIL import Image, ImageTk
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from datetime import datetime
 import os
+from modules.transaction import load_transactions, apply_filter, update_category_options, Transaction
 
 class ViewTransactionsWindow:
     def __init__(self, parent, refresh_callback, user_id):
@@ -31,6 +30,7 @@ class ViewTransactionsWindow:
         self.edit_icon = self.load_icon("icons/edit.png", (20, 20))
         self.delete_icon = self.load_icon("icons/delete.png", (20, 20))
         self.export_icon = self.load_icon("icons/export.png", (20, 20))
+        self.add_icon = self.load_icon("icons/add.png", (20, 20))
 
         # Create a frame for the filter options
         filter_frame = ttk.LabelFrame(self.parent, text="Filter Options", padding="10 10 10 10")
@@ -90,6 +90,8 @@ class ViewTransactionsWindow:
         # Add, Edit, Delete, Export buttons
         buttons_frame = ttk.Frame(self.parent, padding="10 10 10 10")
         buttons_frame.pack(fill=tk.X, expand=True)
+        add_button = ttk.Button(buttons_frame, text="Add Transaction", image=self.add_icon, compound=tk.LEFT, command=self.open_add_transaction_window)
+        add_button.pack(side=tk.LEFT, padx=5)
         edit_button = ttk.Button(buttons_frame, text="Edit", image=self.edit_icon, compound=tk.LEFT, command=self.edit_transaction)
         edit_button.pack(side=tk.LEFT, padx=5)
         delete_button = ttk.Button(buttons_frame, text="Delete", image=self.delete_icon, compound=tk.LEFT, command=self.delete_transaction)
@@ -106,38 +108,27 @@ class ViewTransactionsWindow:
         return ImageTk.PhotoImage(image)
 
     def load_transactions(self):
+        transactions = load_transactions(self.user_id)
         for item in self.transactions_tree.get_children():
             self.transactions_tree.delete(item)
-
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("SELECT title, amount, type, category, date FROM transactions WHERE user_id = %s ORDER BY date DESC", (self.user_id,))
-        transactions = cursor.fetchall()
-        cursor.close()
-        conn.close()
 
         for (title, amount, type, category, date) in transactions:
             self.transactions_tree.insert("", "end", values=(title, amount, type, category, date))
 
-    def update_category_options(self, *args):
-        menu = self.category_option["menu"]
-        menu.delete(0, "end")
-
-        if self.type_var.get() == "income":
-            categories = ["all", "salary", "investment", "etc"]
-        elif self.type_var.get() == "expense":
-            categories = ["all", "food", "study", "work", "exercise", "leisure", "etc"]
+    def update_category_options(self):
+        if self.type_var.get() == "all":
+            self.category_var.set("all")  # Set default category to "all" when type is "all"
         else:
-            categories = ["all"]
-
-        for category in categories:
-            menu.add_command(label=category, command=lambda value=category: self.category_var.set(value))
-
-        self.category_var.set(categories[0])
-
+            update_category_options(self.type_var, self.category_var, self.category_option)
+        
+        
     def apply_filter(self):
         type_filter = self.type_var.get()
         category_filter = self.category_var.get()
+
+        if type_filter == "all":
+            category_filter = "all"  # Ensure category is "all" when type is "all"
+
         start_date = self.start_date_entry.get_date()
         end_date = self.end_date_entry.get_date()
 
@@ -148,25 +139,7 @@ class ViewTransactionsWindow:
         start_date = self.start_date_entry.get_date().strftime("%Y-%m-%d")
         end_date = self.end_date_entry.get_date().strftime("%Y-%m-%d")
 
-        query = "SELECT title, amount, type, category, date FROM transactions WHERE user_id = %s AND date BETWEEN %s AND %s"
-        params = [self.user_id, start_date, end_date]
-
-        if type_filter != "all":
-            query += " AND type = %s"
-            params.append(type_filter)
-
-        if category_filter != "all":
-            query += " AND category = %s"
-            params.append(category_filter)
-
-        query += " ORDER BY date DESC"
-
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute(query, params)
-        transactions = cursor.fetchall()
-        cursor.close()
-        conn.close()
+        transactions = apply_filter(self.user_id, type_filter, category_filter, start_date, end_date)
 
         for item in self.transactions_tree.get_children():
             self.transactions_tree.delete(item)
@@ -246,14 +219,8 @@ class ViewTransactionsWindow:
         save_button.grid(row=5, column=0, columnspan=2, pady=10)
 
     def save_transaction(self, item_id, title, amount, type, category, date, edit_window):
-        conn = mysql.connector.connect(**DB_CONFIG)
-        cursor = conn.cursor()
-        cursor.execute("UPDATE transactions SET title=%s, amount=%s, type=%s, category=%s, date=%s WHERE title=%s AND user_id=%s", 
-                       (title, amount, type, category, date, self.transactions_tree.item(item_id)['values'][0], self.user_id))
-        conn.commit()
-        cursor.close()
-        conn.close()
-
+        transaction = Transaction(title, amount, type, category, date, self.user_id)
+        transaction.update(self.transactions_tree.item(item_id)['values'][0])
         self.transactions_tree.item(item_id, values=(title, amount, type, category, date))
         edit_window.destroy()
         messagebox.showinfo("Updated", "Transaction updated successfully.")
@@ -271,15 +238,18 @@ class ViewTransactionsWindow:
 
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete the transaction '{title}'?")
         if confirm:
-            conn = mysql.connector.connect(**DB_CONFIG)
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM transactions WHERE title = %s AND user_id = %s", (title, self.user_id))
-            conn.commit()
-            cursor.close()
-            conn.close()
+            transaction = Transaction(title, None, None, None, None, self.user_id)
+            transaction.delete()
             self.transactions_tree.delete(selected_item)
             messagebox.showinfo("Deleted", f"Transaction '{title}' deleted successfully.")
             self.refresh_callback()
+
+    def open_add_transaction_window(self):
+        add_window = tk.Toplevel(self.parent)
+        AddTransactionWindow(add_window, self.refresh_data, self.user_id)
+
+    def refresh_data(self):
+        self.load_transactions()
 
     def export_to_pdf(self):
         transactions = [(self.transactions_tree.item(child)["values"]) for child in self.transactions_tree.get_children('')]
