@@ -14,6 +14,7 @@ def open_main_window(root, user_id):
     main_root = tk.Tk()
     main_root.state('zoomed')  # Maximize the window
     MainWindow(main_root, user_id)
+    main_root.protocol("WM_DELETE_WINDOW", main_root.quit)  # Ensure the app quits completely
     main_root.mainloop()
 
 if __name__ == "__main__":
