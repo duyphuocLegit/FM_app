@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 import mysql.connector
 from modules.transaction import *
+from modules.mail import check_new_expense
 
 class ViewTransactionsWindow:
     def __init__(self, parent, refresh_callback, user_id):
@@ -252,11 +253,13 @@ class ViewTransactionsWindow:
             edit_window.destroy()
             messagebox.showinfo("Updated", "Transaction updated successfully.")
             self.refresh_callback()
+            if type == "expense":
+                check_new_expense(amount, self.user_id)
         except mysql.connector.Error as err:
             messagebox.showerror("Database Error", f"An error occurred while updating the transaction: {err}")
         except Exception as e:
             messagebox.showerror("Error", f"An unexpected error occurred: {e}")
-        self.parent.destroy()
+        
         
     def delete_transaction(self):
             selected_item = self.transactions_tree.selection()

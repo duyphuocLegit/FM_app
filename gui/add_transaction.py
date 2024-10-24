@@ -4,6 +4,7 @@ from tkcalendar import DateEntry
 from modules.transaction import Transaction, update_category_options
 from datetime import datetime
 import mysql.connector
+from modules.mail import check_new_expense
 
 class AddTransactionWindow:
     def __init__(self, parent, refresh_callback, user_id, main_window):
@@ -83,7 +84,9 @@ class AddTransactionWindow:
             messagebox.showinfo("Success", "Transaction saved successfully")
             self.clear_add_form()
             self.refresh_callback()
-            self.main_window.refresh_data()  # Call the refresh_data method to update the charts
+            self.main_window.refresh_data()
+            if type == "expense":
+                check_new_expense(amount, self.user_id)
             self.parent.destroy()
         except mysql.connector.Error as err:
             messagebox.showerror("Database Error", f"An error occurred while saving the transaction: {err}")
