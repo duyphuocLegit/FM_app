@@ -8,7 +8,7 @@ from config import DB_CONFIG
 import pandas as pd
 from PIL import Image, ImageTk
 import numpy as np
-from modules.transaction import fetch_data, fetch_monthly_data
+from modules.transaction import fetch_data, fetch_monthly_data, update_financial_info
 
 class MainWindow:
     def __init__(self, master, user_id):
@@ -170,9 +170,8 @@ class MainWindow:
         self.canvas_frame.grid_columnconfigure(1, weight=3)
 
         # Update financial information
-        self.update_financial_info()
+        update_financial_info(self.user_id)
 
-    def update_financial_info(self):
         conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
 

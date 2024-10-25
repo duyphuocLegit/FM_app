@@ -8,7 +8,7 @@ from reportlab.lib.pagesizes import letter
 from datetime import datetime
 import os
 import mysql.connector
-from modules.transaction import *
+from modules.transaction import Transaction, load_transactions, apply_filter, update_category_options
 from modules.mail import check_new_expense
 
 class ViewTransactionsWindow:
